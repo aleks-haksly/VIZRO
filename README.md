@@ -1,2 +1,0 @@
-# VIZRO
-vizro framework dashboards
