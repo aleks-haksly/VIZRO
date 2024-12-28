@@ -5,7 +5,7 @@ import pandas as pd
 from include import env_add
 
 
-engine = create_engine(os.environ.get("supabase"), client_encoding='utf8', engine_options={ 'connect_args': { 'connect_timeout': 5 })
+engine = create_engine(os.environ.get("supabase"), client_encoding='utf8', )
 
 def select(sql):
     sql = text(sql)
