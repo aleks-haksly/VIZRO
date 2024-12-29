@@ -1,53 +1,74 @@
-import pandas as pd
-import plotly.graph_objects as go
-
-import vizro.models as vm
 from vizro import Vizro
-from vizro.models.types import capture
+import vizro.models as vm
+from vizro.figures import kpi_card
+from include._charts import FlexContainer
+from vizro.figures import kpi_card_reference
+from include.supabase import select
+import pandas as pd
 
+df = select("SELECT * FROM vizro.yandex_data_agg")
+kpi_desk_day = pd.DataFrame([df.query("platform == 'desktop'").groupby("date")["count"].sum().tail(2).to_list()], columns=["previous", "actual"])
+kpi_touch_day = pd.DataFrame([df.query("platform == 'touch'").groupby("date")["count"].sum().tail(2).to_list()], columns=["previous", "actual"])
+kpi_desk_hour = pd.DataFrame([df.query("platform == 'desktop'").groupby(["date", "hour"])["count"].sum().tail(2).to_list()], columns=["previous", "actual"])
+kpi_touch_hour = pd.DataFrame([df.query("platform == 'touch'").groupby(["date", "hour"])["count"].sum().tail(2).to_list()], columns=["previous", "actual"])
 
-def waterfall_data():
-    return pd.DataFrame(
-        {
-            "measure": ["relative", "relative", "total", "relative", "relative", "total"],
-            "x": ["Sales", "Consulting", "Net revenue", "Purchases", "Other expenses", "Profit before tax"],
-            "text": ["+60", "+80", "", "-40", "-20", "Total"],
-            "y": [60, 80, 0, -40, -20, 0],
-        }
-    )
-
-
-@capture("graph")
-def waterfall(data_frame, measure, x, y, text, title=None):
-    fig = go.Figure()
-    fig.add_traces(
-        go.Waterfall(
-            measure=data_frame[measure],
-            x=data_frame[x],
-            y=data_frame[y],
-            text=data_frame[text],
-            decreasing={"marker": {"color": "#ff5267"}},
-            increasing={"marker": {"color": "#08bdba"}},
-            totals={"marker": {"color": "#00b4ff"}},
-        ),
-    )
-
-    fig.update_layout(title=title)
-    return fig
-
-
-page_0 = vm.Page(
-    title="Custom chart",
+kpi_banner = FlexContainer(
     components=[
-        vm.Graph(
-            figure=waterfall(data_frame=waterfall_data(), measure="measure", x="x", y="y", text="text"),
+        vm.Figure(
+            id="kpi-touch-day",
+            figure=kpi_card_reference(
+                kpi_touch_day,
+                value_column="actual",
+                reference_column="previous",
+                title="DoD queries - touch",
+                value_format="{value:.0f}",
+                reference_format="{delta_relative:+.1%} vs. previous day ({reference:.0f})",
+                icon=["Smartphone", "calendar_month"],
+            ),
         ),
-    ],
-    # Apply a filter to the custom chart
-    controls=[
-        vm.Filter(column="x", selector=vm.Dropdown(title="Financial categories", multi=True)),
-    ],
+        vm.Figure(
+            id="kpi-desk-day",
+            figure=kpi_card_reference(
+                kpi_desk_day,
+                value_column="actual",
+                reference_column="previous",
+                title="DoD queries - desktop ",
+                value_format="{value:.0f}",
+                reference_format="{delta_relative:+.1%} vs. previous day ({reference:.0f})",
+                icon=["computer", "calendar_month"],
+            ),
+        ),
+vm.Figure(
+            id="kpi-touch-hour",
+            figure=kpi_card_reference(
+                kpi_touch_hour,
+                value_column="actual",
+                reference_column="previous",
+                title="HoH queries - touch",
+                value_format="{value:.0f}",
+                reference_format="{delta_relative:+.1%} vs. previous hour ({reference:.0f})",
+                icon=["Smartphone",  "Pace"],
+            ),
+        ),
+        vm.Figure(
+            id="kpi-desk-hour",
+            figure=kpi_card_reference(
+                kpi_desk_hour,
+                value_column="actual",
+                reference_column="previous",
+                title="HoH queries - desktop ",
+                value_format="{value:.0f}",
+                reference_format="{delta_relative:+.1%} vs. previous hour ({reference:.0f})",
+                icon=["computer", "Pace"],
+            ),
+        ),
+        ],
+    classname="kpi-banner",
+    #layout=vm.Layout(grid=[[0, 0, 0, 0],[1, 1, 2, 2], [3, 3, 3, 3]]),
 )
-dashboard = vm.Dashboard(pages=[page_0])
-
+page = vm.Page(
+    title="My first dashboard",
+    layout=vm.Layout(grid=[[0, 0], [1, 2]]),
+    components=[kpi_banner, kpi_banner, kpi_banner])
+dashboard = vm.Dashboard(pages=[page])
 Vizro().build(dashboard).run()
