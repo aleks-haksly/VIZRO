@@ -5,6 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="828f1c99-3cd3-440b-a4c6-782fae81c843" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/include/one_more_test.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/include/parameter.test.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/test.py" afterDir="false" />
     </list>
@@ -35,6 +37,8 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "Python.main.executor": "Run",
+    "Python.one_more_test.executor": "Run",
+    "Python.parameter.test.executor": "Run",
     "Python.supabase.executor": "Run",
     "Python.test.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
