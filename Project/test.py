@@ -12,7 +12,7 @@ kpi_touch_day = pd.DataFrame([df.query("platform == 'touch'").groupby("date")["c
 kpi_desk_hour = pd.DataFrame([df.query("platform == 'desktop'").groupby(["date", "hour"])["count"].sum().tail(2).to_list()], columns=["previous", "actual"])
 kpi_touch_hour = pd.DataFrame([df.query("platform == 'touch'").groupby(["date", "hour"])["count"].sum().tail(2).to_list()], columns=["previous", "actual"])
 
-kpi_banner = FlexContainer(
+kpi_banner = vm.Container(
     components=[
         vm.Figure(
             id="kpi-touch-day",
@@ -38,7 +38,7 @@ kpi_banner = FlexContainer(
                 icon=["computer", "calendar_month"],
             ),
         ),
-vm.Figure(
+        vm.Figure(
             id="kpi-touch-hour",
             figure=kpi_card_reference(
                 kpi_touch_hour,
@@ -63,12 +63,12 @@ vm.Figure(
             ),
         ),
         ],
-    classname="kpi-banner",
-    #layout=vm.Layout(grid=[[0, 0, 0, 0],[1, 1, 2, 2], [3, 3, 3, 3]]),
+    title = "",
+    layout=vm.Layout(grid=[[0, 1, 2, 3],]),
 )
 page = vm.Page(
     title="My first dashboard",
-    layout=vm.Layout(grid=[[0, 0], [1, 2]]),
-    components=[kpi_banner, kpi_banner, kpi_banner])
+    layout=vm.Layout(grid=[[0,]]),
+    components=[kpi_banner])
 dashboard = vm.Dashboard(pages=[page])
 Vizro().build(dashboard).run()
