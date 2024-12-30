@@ -1,3 +1,4 @@
+from operator import iconcat
 
 from vizro import Vizro
 import vizro.models as vm
@@ -10,15 +11,18 @@ import pandas as pd
 
 
 df = select("SELECT * FROM vizro.yandex_data_agg")
+df["date"] = pd.to_datetime(df["date"], format='%Y-%m_%d')
 
 def get_kpi_data(data=df, platform="touch", scale="day"):
         match scale:
             case 'day':
-                return pd.DataFrame([df.groupby(["platform", "date"])["count"].sum().loc[platform].tail(2).to_list()], columns=["previous", "actual"])
+                d = df.groupby(["platform", "date"], as_index=False)["count"].sum().rename(columns={"count": "actual"})
+                d["previous"] = d["actual"].shift(1)
+                return d.query("platform==@platform")
             case 'hour':
-                return pd.DataFrame([df.groupby(["platform", "date", "hour"])["count"].sum().loc[platform].tail(2).to_list()], columns=["previous", "actual"])
-
-
+                d = df.groupby(["platform", "date", "hour"], as_index=False)["count"].sum().rename(columns={"count": "actual"})
+                d["previous"] = d["actual"].shift(1)
+                return d.query("platform==@platform")
 data_manager["kpi_data_day_touch"] = get_kpi_data(platform="touch", scale="day")
 data_manager["kpi_data_day_desk"] = get_kpi_data(platform="desktop", scale="day")
 data_manager["kpi_data_hour_touch"] = get_kpi_data(platform="touch", scale="hour")
@@ -34,6 +38,7 @@ kpi_banner_day = vm.Container(
                 "kpi_data_day_touch",
                 value_column="actual",
                 reference_column="previous",
+                agg_func=lambda x: x.iloc[-1],
                 title="DoD queries - touch",
                 value_format="{value:.0f}",
                 reference_format="{delta_relative:+.1%} vs. previous day ({reference:.0f})",
@@ -47,6 +52,7 @@ kpi_banner_day = vm.Container(
                 "kpi_data_day_desk",
                 value_column="actual",
                 reference_column="previous",
+                agg_func=lambda x: x.iloc[-1],
                 title="DoD queries - desktop",
                 value_format="{value:.0f}",
                 reference_format="{delta_relative:+.1%} vs. previous day ({reference:.0f})",
@@ -75,6 +81,7 @@ kpi_banner_hour = vm.Container(
                 "kpi_data_hour_touch",
                 value_column="actual",
                 reference_column="previous",
+                agg_func=lambda x: x.iloc[-1],
                 title="HoH queries - touch",
                 value_format="{value:.0f}",
                 reference_format="{delta_relative:+.1%} vs. previous hour ({reference:.0f})",
@@ -88,6 +95,7 @@ kpi_banner_hour = vm.Container(
                 "kpi_data_hour_desk",
                 value_column="actual",
                 reference_column="previous",
+                agg_func=lambda x: x.iloc[-1],
                 title="HoH queries - desktop",
                 value_format="{value:.0f}",
                 reference_format="{delta_relative:+.1%} vs. previous hour ({reference:.0f})",
@@ -110,6 +118,9 @@ page_overview_day = vm.Page(
     title="Day scale data",
     layout=vm.Layout(grid=[[0,]]),
     components=[kpi_banner_day],
+    controls=[
+        vm.Filter(column="date",targets=["kpi-touch-day", "kpi-desk-day"], selector=vm.DatePicker(range=True)),
+    ],
 )
 
 page_overview_hour = vm.Page(
