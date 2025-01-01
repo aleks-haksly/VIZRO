@@ -11,7 +11,8 @@ import pandas as pd
 
 
 df = select("SELECT * FROM vizro.yandex_data_agg")
-df["date"] = pd.to_datetime(df["date"], format='%Y-%m_%d')
+df["date"] = pd.to_datetime(df["ds"], format='%Y-%m_%d')
+df["hour"] = df["ds"].dt.hour
 
 def get_kpi_data(data=df, platform="touch", scale="day"):
         match scale:
@@ -119,7 +120,7 @@ page_overview_day = vm.Page(
     layout=vm.Layout(grid=[[0,]]),
     components=[kpi_banner_day],
     controls=[
-        vm.Filter(column="date",targets=["kpi-touch-day", "kpi-desk-day"], selector=vm.DatePicker(range=True)),
+        vm.Filter(column="date",targets=["kpi-touch-day", "kpi-desk-day"], selector=vm.DatePicker(range=True, title ="Dates")),
     ],
 )
 

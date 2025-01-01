@@ -18,7 +18,7 @@ WEEK_DAYS = {
 }
 
 df = select("SELECT * FROM vizro.yandex_data_agg")
-plot_data = df.groupby(["platform", "date", "weekday", "weekend"], as_index=False)["count"].sum()
+plot_data = df.groupby(["platform", "ds", "weekday", "weekend"], as_index=False)["count"].sum()
 
 
 @capture("graph")
@@ -31,7 +31,7 @@ def butterfly(data_frame: pd.DataFrame, **kwargs) -> go.Figure:
     weekend_data = data_frame[data_frame["weekend"] == True]
 
     # Определяем интервалы выходных
-    for date in weekend_data["date"]:
+    for date in weekend_data["ds"]:
         weekend_ranges.append((date, date + pd.Timedelta(days=1)))
 
     weekend_fillcolor = "rgba(128, 0, 128, 0.2)"  # заливка для выходных
@@ -58,7 +58,7 @@ def butterfly(data_frame: pd.DataFrame, **kwargs) -> go.Figure:
 
 fig = butterfly(
     plot_data,
-    x="date", y="count", color="platform", hover_data="weekday")
+    x="ds", y="count", color="platform", hover_data="weekday")
 
 page = vm.Page(
     title="My first dashboard",
