@@ -31,10 +31,8 @@ def get_kpi_data(data=df, platform="touch", scale="day"):
 
 def make_forcast(df, freq, periods=0, daily_seasonality=True, weekly_seasonality=True, yearly_seasonality=False, interval_width=0.95):
     model = Prophet(daily_seasonality=daily_seasonality, weekly_seasonality=weekly_seasonality, yearly_seasonality=yearly_seasonality, interval_width=interval_width,)
-
     model.fit(df)
     future = model.make_future_dataframe(freq=freq, periods=periods)
-
     forecast = model.predict(future)
     forecast['y'] = df['y']
     for col in ['yhat', 'yhat_lower']:
@@ -43,15 +41,11 @@ def make_forcast(df, freq, periods=0, daily_seasonality=True, weekly_seasonality
 
 @capture("graph")
 def outliers_line_plot(data_frame: pd.DataFrame, **kwargs) -> go.Figure:
-
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=data_frame['ds'], y=data_frame['y'],  name="fact", mode='markers'))
     fig.add_trace(go.Scatter(x=data_frame['ds'], y=data_frame['yhat'], name="predict", mode='lines'))
     fig.add_trace(go.Scatter(x=data_frame['ds'], y=data_frame['yhat_lower'], fill='tonexty', mode='none', name="95% CI lower"))
-
     fig.add_trace(go.Scatter(x=data_frame['ds'], y=data_frame['yhat_upper'], fill='tonexty', mode='text', name="95% CI upper"))
-
-
     fig.add_trace(go.Scatter(x=data_frame['ds'], y=data_frame['trend'], name="trend"))
     return fig
 
