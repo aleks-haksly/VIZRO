@@ -1,5 +1,3 @@
-from operator import iconcat
-
 from vizro import Vizro
 import vizro.models as vm
 import vizro.plotly.express as px
@@ -10,6 +8,7 @@ from include.supabase import select
 import pandas as pd
 import plotly.graph_objects as go
 from prophet import Prophet
+from vizro.tables import dash_ag_grid
 from vizro.models.types import capture
 
 
@@ -22,10 +21,12 @@ def get_kpi_data(data=df, platform="touch", scale="day"):
             case 'day':
                 d = df.groupby(["platform", "date"], as_index=False)["count"].sum().rename(columns={"count": "actual"})
                 d["previous"] = d["actual"].shift(1)
+                print(d.query("platform==@platform"))
                 return d.query("platform==@platform")
             case 'hour':
                 d = df.groupby(["platform", "date", "hour"], as_index=False)["count"].sum().rename(columns={"count": "actual"})
                 d["previous"] = d["actual"].shift(1)
+                print(d.query("platform==@platform"))
                 return d.query("platform==@platform")
 
 def make_forcast(df, freq, periods=0, daily_seasonality=True, weekly_seasonality=True, yearly_seasonality=False, interval_width=0.95):
@@ -42,22 +43,27 @@ def make_forcast(df, freq, periods=0, daily_seasonality=True, weekly_seasonality
 
 @capture("graph")
 def outliers_line_plot(data_frame: pd.DataFrame, **kwargs) -> go.Figure:
+
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=data_frame['ds'], y=data_frame['y'],  name="fact", mode='markers'))
     fig.add_trace(go.Scatter(x=data_frame['ds'], y=data_frame['yhat'], name="predict", mode='lines'))
-    fig.add_trace(go.Scatter(x=data_frame['ds'], y=data_frame['yhat_upper'], fill='tonexty', mode='none', name="95% CI upper"))
-    fig.add_trace(go.Scatter(x=data_frame['ds'], y=data_frame['yhat'], mode='lines', showlegend=False)),
     fig.add_trace(go.Scatter(x=data_frame['ds'], y=data_frame['yhat_lower'], fill='tonexty', mode='none', name="95% CI lower"))
+
+    fig.add_trace(go.Scatter(x=data_frame['ds'], y=data_frame['yhat_upper'], fill='tonexty', mode='text', name="95% CI upper"))
+
+
     fig.add_trace(go.Scatter(x=data_frame['ds'], y=data_frame['trend'], name="trend"))
     return fig
 
-
+def test():
+    print(df.groupby(["date", "hour", "platform"], as_index=False)["count"].sum().iloc[-2:])
+    return df.groupby(["date", "hour", "platform"], as_index=False)["count"].sum().iloc[-2:]
 
 data_manager["kpi_data_day_touch"] = get_kpi_data(platform="touch", scale="day")
 data_manager["kpi_data_day_desk"] = get_kpi_data(platform="desktop", scale="day")
 data_manager["kpi_data_hour_touch"] = get_kpi_data(platform="touch", scale="hour")
 data_manager["kpi_data_hour_desk"] = get_kpi_data(platform="desktop", scale="hour")
-data_manager["pie"] = df.groupby(["date", "hour", "platform"], as_index=False)["count"].sum().tail(2)
+data_manager["pie"] = df.groupby(["date", "hour", "platform"], as_index=False)["count"].sum().iloc[-2:]
 
 
 kpi_banner_day = vm.Container(
@@ -93,7 +99,7 @@ kpi_banner_day = vm.Container(
         ),
         vm.Graph(
             figure=px.pie(
-                data_frame=df.groupby(["date", "platform"], as_index=False)["count"].sum().tail(2),
+                data_frame=test(),
                 values="count",
                 names="platform",
                 title="Platforms ratio"
@@ -136,7 +142,7 @@ kpi_banner_hour = vm.Container(
         ),
         vm.Graph(
             figure=px.pie(
-                data_frame  = df.groupby(["date", "hour", "platform"], as_index=False)["count"].sum().tail(2),
+                data_frame  = test(),
                 values="count",
 
                 names="platform",
@@ -179,11 +185,13 @@ page_overview_day = vm.Page(
         vm.Filter(column="date",targets=["kpi-touch-day", "kpi-desk-day"], selector=vm.DatePicker(range=True, title ="Dates")),
     ],
 )
+def test():
+    return df.reset_index().sort_values(by='date').iloc[-2:]
 
 page_overview_hour = vm.Page(
     title="Hour scales data",
-    layout=vm.Layout(grid=[[0,],[1,],[1,], [1,]]),
-    components=[kpi_banner_hour, line_charts_tabbed],
+    layout=vm.Layout(grid=[[0,],[1,],[1,], [2,]]),
+    components=[kpi_banner_hour, line_charts_tabbed, vm.AgGrid(figure=dash_ag_grid(data_frame=test() ))],
     controls=[
         vm.Filter(column="date",
                   selector=vm.DatePicker(range=True, title="Dates")),

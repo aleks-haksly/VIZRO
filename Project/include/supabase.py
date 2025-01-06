@@ -24,5 +24,5 @@ FROM
 GROUP BY
   card
 """
-data = select(sql)
+#data = select(sql)
 
