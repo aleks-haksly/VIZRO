@@ -9,6 +9,8 @@ from prophet import Prophet
 from vizro.models.types import capture
 import plotly.graph_objects as go
 import vizro.plotly.express as px
+from plotly.subplots import make_subplots
+
 
 agg_data = select("SELECT * FROM vizro.yandex_data_aggs")
 def get_pie_data(df):
@@ -24,7 +26,7 @@ def make_forcast(df, freq, platform, periods=0, daily_seasonality=True, weekly_s
     for col in ['yhat', 'yhat_lower']:
         forecast[col] = forecast[col].clip(lower=0.0)
     forecast['ts'] =  forecast['ds']
-    print(forecast)
+    print(forecast.columns)
     return forecast
 
 @capture("graph")
@@ -47,6 +49,32 @@ def outliers_line_plot(data_frame: pd.DataFrame, **kwargs) -> go.Figure:
                              hovertemplate="<b>Date:</b> %{x}<br><b>95% CI Upper:</b> %{y}<br>%{customdata}<extra></extra>",
                              ))
     fig.add_trace(go.Scatter(x=data_frame['ds'], y=data_frame['trend'], name="trend"))
+    fig.update_layout(yaxis=dict(title=dict(text="Number of queries")), title=dict(text="Outliers outside the 95% confidence interval"),)
+
+    return fig
+
+
+@capture("graph")
+def components_plot(data_frame: pd.DataFrame, **kwargs) -> go.Figure:
+    fig = make_subplots(rows=3, cols=1, subplot_titles=["Trend", "Weekly Seasonality", "Daily Seasonality"])
+    fig.add_trace(
+        go.Scatter(x=data_frame['ds'], y=data_frame['trend'], mode='lines', name='Trend',
+                   hovertemplate="<b>Date:</b> %{x}<br><b>Trend:</b> %{y}<br><extra></extra>",),
+        row=1, col=1
+    )
+    fig.add_trace(
+        go.Scatter(x=data_frame['ds'][-168:], y=data_frame['weekly'][-168:], mode='lines', name='Weekly trend',
+                   customdata=data_frame['ds'].dt.day_name(),
+                   hovertemplate="<b>Date:</b> %{x}<br><b>Weekly trend:</b> %{y}<br><b>DOW:</b>%{customdata}<extra></extra>",),
+        row=2, col=1
+    )
+    fig.add_trace(
+        go.Scatter(x=data_frame['ds'][-24:], y=data_frame['daily'][-24:], mode='lines', name='Daily trend',
+                   hovertemplate="<b>Time:</b> %{x}<br><b>Daily trend:</b> %{y}<br><extra></extra>",),
+        row=3, col=1
+    )
+    fig.update_layout(title="Model Components", showlegend=False)
+
     return fig
 
 def get_kpi_data(df, platform="touch"):
@@ -101,22 +129,29 @@ kpi_container = vm.Container(
                 data_frame = get_pie_data(agg_data),
                 values="count",
                 names="platform",
-                title="Queries ratio over period"
+                title="Queries ratio over selected dates range"
             ),
         ),
 
         ],
     layout=vm.Layout(grid=[[0, 1, 2, 3],]),
 )
+data_manager['forcast_touch'] = make_forcast(agg_data, freq='h', platform='touch')
+data_manager['forcast_desktop'] = make_forcast(agg_data, freq='h', platform='desktop')
 
 line_charts_tabbed = vm.Tabs(
     tabs=[vm.Container(
-            title="outlier detection - touch",
+            title="Outlier detection - touch",
             components=[
-                vm.Graph(id="forcast_graph_touch", figure=outliers_line_plot(make_forcast(agg_data, freq='h', platform='touch')))]),
+                vm.Graph(id="forcast_graph_touch", figure=outliers_line_plot('forcast_touch')),
+                vm.Graph(id="forcast_components_touch", figure=components_plot('forcast_touch'))
+            ],
+            layout=vm.Layout(grid=[[0, 0, 1]])),
             vm.Container(
-            title="outlier detection - desktop",
-            components=[vm.Graph(id="forcast_graph_desktop", figure=outliers_line_plot(make_forcast(agg_data, freq='h', platform='desktop')))])
+            title="Outlier detection - desktop",
+            components=[vm.Graph(id="forcast_graph_desktop", figure=outliers_line_plot('forcast_desktop')),
+                        vm.Graph(id="forcast_components_desktop", figure=components_plot('forcast_desktop'))],
+            layout=vm.Layout(grid=[[0, 0, 1]])),
         ])
 
 page_overview = vm.Page(
