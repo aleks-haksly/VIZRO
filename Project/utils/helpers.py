@@ -41,3 +41,13 @@ def get_kpi_data(df, platform="touch"):
     )
     result["previous"] = result.groupby('scale')["actual"].shift(1)
     return result
+
+def get_heatmap_data(df):
+    """Prepare data for heatmap visualization."""
+    df = df.query("scale == 'hours'").reset_index(drop=True)
+    df['date'] = df.ds.dt.date
+    df['hour'] = df.ds.dt.hour
+    df["dow"] = df.ds.dt.weekday + 1
+    df = df.sort_values(by='ds')
+    df["wow_diff"] = df['count'] - df.groupby(["platform", "dow", "hour"])["count"].shift(1)
+    return df[["date", "platform", "hour", "dow", "wow_diff"]]

@@ -8,7 +8,7 @@ from vizro.models.types import capture
 import plotly.graph_objects as go
 import vizro.plotly.express as px
 from plotly.subplots import make_subplots
-from utils.helpers import get_pie_data, make_forecast, get_kpi_data
+from utils.helpers import get_pie_data, make_forecast, get_kpi_data, get_heatmap_data
 
 # Data Retrieval
 agg_data = select("SELECT * FROM vizro.yandex_data_agg")
@@ -16,6 +16,7 @@ agg_data = select("SELECT * FROM vizro.yandex_data_agg")
 # Forecast Data Management
 data_manager['forecast_touch'] = make_forecast(agg_data, freq='h', platform='touch')
 data_manager['forecast_desktop'] = make_forecast(agg_data, freq='h', platform='desktop')
+data_manager['heatmap_data'] = get_heatmap_data(agg_data)
 
 
 # Plot functions
