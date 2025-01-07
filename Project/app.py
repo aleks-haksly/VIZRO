@@ -82,7 +82,9 @@ def heatmap_plot(data_frame: pd.DataFrame, z, **kwargs) -> go.Figure:
     if z == 'count':
         fig = density_heatmap(df, x="date", y="hour", z=z, histfunc="sum",
                     text_auto=True, nbinsy=24, nbinsx=7, facet_col="platform",
-                              color_continuous_scale=px.colors.sequential.Purples, hover_data ={'dow': True}
+                              color_continuous_scale=px.colors.sequential.Purples,
+                              **kwargs
+                              #hover_data ={'dow': True}
                               )
 
 
@@ -90,11 +92,17 @@ def heatmap_plot(data_frame: pd.DataFrame, z, **kwargs) -> go.Figure:
         fig = density_heatmap(df, x="date", y="hour", z=z, histfunc="sum",
                               text_auto=True, nbinsy=24, nbinsx=7, facet_col="platform",
                               color_continuous_scale=px.colors.diverging.BrBG, color_continuous_midpoint=0,
+                              **kwargs
                               )
 
-    for d in fig.data:
-        d.hovertemplate = '<b>Date: </b>%{x}<br><b>Hour: </b>%{y}<br><b>Queries count: </b>%{z}<extra></extra>'
-
+    for data in fig.data:
+        if z == 'wow_diff_%':
+            data.hovertemplate = '<b>Date: </b>%{x}<br><b>Hour: </b>%{y}<br><b>Queries count: </b>%{z:.2f}%<extra></extra>'
+            data.texttemplate = '%{z:.2f}%'
+            fig.update_coloraxes(colorbar_ticksuffix= '%')
+        else:
+            data.hovertemplate = '<b>Date: </b>%{x}<br><b>Hour: </b>%{y}<br><b>Queries count: </b>%{z}<extra></extra>'
+    fig.update_coloraxes(colorbar_title_text='')
     return fig
 
 # KPI Container
@@ -205,25 +213,33 @@ page_overview = vm.Page(
 
 # Overview Page
 
+# Heatmaps
 heatmap_tabbed = vm.Tabs(
     tabs=[vm.Container(
             title="Weekly queries count",
             components=[
             vm.Graph(
             id="Weekly queries count",
-            figure= heatmap_plot('heatmap_data', z="count")
+            figure= heatmap_plot('heatmap_data', z="count", title = 'Weekly queries count')
             )]),
-            vm.Container(
+        vm.Container(
             title="WoW difference",
             components=[
             vm.Graph(
             id="WoW difference",
-            figure=heatmap_plot('heatmap_data', z="wow_diff")
+            figure=heatmap_plot('heatmap_data', z="wow_diff", title = 'WoW queries count difference')
+            )]),
+        vm.Container(
+            title="WoW difference %",
+            components=[
+            vm.Graph(
+            id="WoW % difference",
+            figure=heatmap_plot('heatmap_data', z="wow_diff_%", title = 'WoW queries count difference %')
             )])
         ])
 
 page_queries_detailed = vm.Page(
-    title="Queries",
+    title="Queries counts detailed",
     layout=vm.Layout(grid=[[0],]),
     components=[heatmap_tabbed, ],
     controls=[
@@ -248,7 +264,7 @@ dashboard = vm.Dashboard(
             items=[
                 vm.NavLink(
                     label="Overview",
-                    pages={"Sections": ["Overview Dashboard", "Queries"]},
+                    pages={"Sections": ["Overview Dashboard", "Queries counts detailed"]},
                     icon="bar_chart_4_bars"
                 )
             ]
