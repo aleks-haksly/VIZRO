@@ -50,4 +50,5 @@ def get_heatmap_data(df):
     df["dow"] = df.ds.dt.weekday + 1
     df = df.sort_values(by='ds')
     df["wow_diff"] = df['count'] - df.groupby(["platform", "dow", "hour"])["count"].shift(1)
-    return df[["date", "platform", "hour", "dow", "wow_diff"]]
+    return df[["ds", "date", "platform", "hour", "dow", "count", "wow_diff"]]
+

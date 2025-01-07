@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 import vizro.plotly.express as px
 from plotly.subplots import make_subplots
 from utils.helpers import get_pie_data, make_forecast, get_kpi_data, get_heatmap_data
+from plotly.express import density_heatmap
 
 # Data Retrieval
 agg_data = select("SELECT * FROM vizro.yandex_data_agg")
@@ -75,6 +76,26 @@ def components_plot(data_frame: pd.DataFrame, **kwargs) -> go.Figure:
     fig.update_layout(title="Model Components", showlegend=False)
     return fig
 
+@capture("graph")
+def heatmap_plot(data_frame: pd.DataFrame, z, **kwargs) -> go.Figure:
+    df = data_frame[data_frame.date > data_frame.date.max() - pd.Timedelta(7, 'days')]
+    if z == 'count':
+        fig = density_heatmap(df, x="date", y="hour", z=z, histfunc="sum",
+                    text_auto=True, nbinsy=24, nbinsx=7, facet_col="platform",
+                              color_continuous_scale=px.colors.sequential.Purples, hover_data ={'dow': True}
+                              )
+
+
+    else:
+        fig = density_heatmap(df, x="date", y="hour", z=z, histfunc="sum",
+                              text_auto=True, nbinsy=24, nbinsx=7, facet_col="platform",
+                              color_continuous_scale=px.colors.diverging.BrBG, color_continuous_midpoint=0,
+                              )
+
+    for d in fig.data:
+        d.hovertemplate = '<b>Date: </b>%{x}<br><b>Hour: </b>%{y}<br><b>Queries count: </b>%{z}<extra></extra>'
+
+    return fig
 
 # KPI Container
 kpi_container = vm.Container(
@@ -154,7 +175,7 @@ line_charts_tabbed = vm.Tabs(
     ]
 )
 
-# Overview Page
+# Pages
 page_overview = vm.Page(
     title="Overview Dashboard",
     layout=vm.Layout(grid=[[0], [1], [1], [1]]),
@@ -176,7 +197,43 @@ page_overview = vm.Page(
             selector=vm.DatePicker(
                 range=True,
                 title="Dates",
-                id='dates_selector'
+                id='dates_selector_p1'
+            )
+        ),
+    ]
+)
+
+# Overview Page
+
+heatmap_tabbed = vm.Tabs(
+    tabs=[vm.Container(
+            title="Weekly queries count",
+            components=[
+            vm.Graph(
+            id="Weekly queries count",
+            figure= heatmap_plot('heatmap_data', z="count")
+            )]),
+            vm.Container(
+            title="WoW difference",
+            components=[
+            vm.Graph(
+            id="WoW difference",
+            figure=heatmap_plot('heatmap_data', z="wow_diff")
+            )])
+        ])
+
+page_queries_detailed = vm.Page(
+    title="Queries",
+    layout=vm.Layout(grid=[[0],]),
+    components=[heatmap_tabbed, ],
+    controls=[
+        vm.Filter(
+            column="ds",
+            targets=[],
+            selector=vm.DatePicker(
+                range=True,
+                title="Dates",
+                id='dates_selector_p2'
             )
         ),
     ]
@@ -185,13 +242,13 @@ page_overview = vm.Page(
 # Dashboard Setup
 dashboard = vm.Dashboard(
     title="Yandex Queries Overview",
-    pages=[page_overview],
+    pages=[page_overview, page_queries_detailed],
     navigation=vm.Navigation(
         nav_selector=vm.NavBar(
             items=[
                 vm.NavLink(
                     label="Overview",
-                    pages={"Sections": ["Overview Dashboard"]},
+                    pages={"Sections": ["Overview Dashboard", "Queries"]},
                     icon="bar_chart_4_bars"
                 )
             ]
