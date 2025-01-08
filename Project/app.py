@@ -10,6 +10,7 @@ import vizro.plotly.express as px
 from plotly.subplots import make_subplots
 from utils.helpers import get_pie_data, make_forecast, get_kpi_data, get_heatmap_data
 from plotly.express import density_heatmap
+from utils.table import table_pval
 
 # Data Retrieval
 agg_data = select("SELECT * FROM vizro.yandex_data_agg")
@@ -204,7 +205,7 @@ page_overview = vm.Page(
             targets=[],
             selector=vm.DatePicker(
                 range=True,
-                title="Dates",
+                title="Dates range",
                 id='dates_selector_p1'
             )
         ),
@@ -254,17 +255,31 @@ page_queries_detailed = vm.Page(
         ),
     ]
 )
+# Detailed queries text page
+
+
+page_queries_text_detailed = vm.Page(
+    title="Queries text detailed",
+    layout=vm.Layout(grid=[[0],]),
+    components=[table_pval, ],
+    controls=[
+
+    ]
+)
+
+
+
 
 # Dashboard Setup
 dashboard = vm.Dashboard(
     title="Yandex Queries Overview",
-    pages=[page_overview, page_queries_detailed],
+    pages=[page_overview, page_queries_detailed, page_queries_text_detailed],
     navigation=vm.Navigation(
         nav_selector=vm.NavBar(
             items=[
                 vm.NavLink(
                     label="Overview",
-                    pages={"Sections": ["Overview Dashboard", "Queries counts detailed"]},
+                    pages={"Sections": ["Overview Dashboard", "Queries counts detailed", "Queries text detailed"]},
                     icon="bar_chart_4_bars"
                 )
             ]
