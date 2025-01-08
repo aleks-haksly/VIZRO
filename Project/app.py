@@ -1,6 +1,8 @@
 from vizro import Vizro
+from dash import dcc
 import pandas as pd
 import vizro.models as vm
+from dash import Input, Output, callback
 #from vizro.managers import data_manager
 #from utils.supabase import select
 #from vizro.figures import kpi_card_reference, kpi_card
@@ -10,10 +12,9 @@ import vizro.plotly.express as px
 from plotly.subplots import make_subplots
 #from utils.helpers import get_pie_data, make_forecast, get_kpi_data, get_heatmap_data
 from plotly.express import density_heatmap
-from utils.table import table_pval
+from utils.table import table_pval, create_table_with_filter
 #from utils.data_loader import data_manager, agg_data
 from utils.helpers import outliers_line_plot, components_plot, heatmap_plot, fig_kpi_date, fig_kpi_touch, fig_kpi_desk, fig_graph_pie
-
 # Overview page
 ## Components
 kpi_container = vm.Container(
@@ -119,14 +120,35 @@ page_queries_detailed = vm.Page(
 ## Components
 
 
-page_queries_text_detailed = vm.Page(
-    title="Queries text detailed",
-    layout=vm.Layout(grid=[[0],]),
-    components=[table_pval, ],
-    controls=[
+vm.Page.add_type("controls", vm.DatePicker)
 
-    ]
+@capture("action")
+def reload_table(value):
+    min, max = value
+    df = create_table_with_filter(min, max)
+    print(df)
+
+page_queries_text_detailed = vm.Page(
+    title="Queries_text_detailed",
+    layout=vm.Layout(grid=[[0],[0], [1] ]),
+    components=[
+        table_pval, vm.Button(text="I'm a button!", actions=[
+                vm.Action(
+                    function=reload_table(),
+                    inputs=["date_filter.value"],
+                    outputs=["tb1.dataframe"],
+                )
+            ],)
+    ],
+    controls=[vm.Parameter(targets=[], selector=vm.DatePicker(
+                range=True,
+                title="Dates",
+                id='date_filter',
+                min='2021-09-01',
+                max='2021-09-21',))],
+
 )
+
 
 
 
@@ -140,7 +162,7 @@ dashboard = vm.Dashboard(
             items=[
                 vm.NavLink(
                     label="Overview",
-                    pages={"Sections": ["Overview Dashboard", "Queries counts detailed", "Queries text detailed"]},
+                    pages={"Sections": ["Overview Dashboard", "Queries counts detailed", "Queries_text_detailed"]},
                     icon="bar_chart_4_bars"
                 )
             ]

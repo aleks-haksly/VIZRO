@@ -1,45 +1,59 @@
 import pandas as pd
-import vizro.plotly.express as px
+from dash import Input, Output, callback
 import vizro.models as vm
+import vizro.plotly.express as px
 from vizro import Vizro
-
-# Example DataFrame
-data = {
-    "date": pd.date_range(start="2024-12-01", periods=100, freq="D"),
-    "platform": ["desktop", "touch"] * 50,
-    "count": range(100),
-}
-df = pd.DataFrame(data)
+from vizro.models.types import capture
 
 
+df = px.data.iris()
 
+vm.Page.add_type("controls", vm.RadioItems)
 
-# Create a Graph Component
-last_values_graph = vm.Graph(
-    id="last_values_graph",
-    figure=px.bar(
-        data_frame=df.groupby("platform", as_index=False).tail(1),  # Default: Last rows
-        x="platform",
-        y="count",
-        title="Last Values by Platform",
-    ),
+page = vm.Page(
+    title="Page Title",
+    components=[
+        vm.Graph(
+            id="graph_1",
+            figure=px.scatter(df, x=None, y="sepal_length", color="species"),
+        )
+    ],
+    controls=[
+        vm.RadioItems(
+            title="Select item:",
+            id="item_selector",
+            options=["sepal", "petal"],
+            value="sepal",
+        ),
+        vm.Parameter(
+            targets=["graph_1.x"],
+            selector=vm.Dropdown(
+                title="Select x:",
+                id="x_selector",
+                multi=False,
+                options=["sepal_width", "sepal_length"],
+                value="sepal_width"
+            )
+        )
+    ]
 )
 
-# Add a Date Filter
-date_filter = vm.Filter(column="date", targets=["last_values_graph"],     selector=vm.DatePicker(range=True, title="Select Date Range"))
+dashboard = vm.Dashboard(pages=[page])
 
-# Create a Page with Filter and Graph
-page_last_values = vm.Page(
-    title="Last Values Overview",
-    layout=vm.Layout(grid=[[0]]),
-    components=[last_values_graph],
-    controls=[date_filter],
+
+# Pure dash callback to update x_selector options based on item_selector value
+@callback(
+    Output("x_selector", "options"),
+    Output("x_selector", "value"),
+    Input("item_selector", "value")
 )
+def update_parameter_options(selected_item):
+    if selected_item == "sepal":
+        options = ["sepal_width", "sepal_length"]
+    else:
+        options = ["petal_width", "petal_length"]
+    return options, options[0]
 
-# Build and Run Dashboard
-dashboard = vm.Dashboard(
-    title="Vizro Dashboard with Filterable Last Values",
-    pages=[page_last_values],
-)
 
-Vizro().build(dashboard).run()
+if __name__ == "__main__":
+    Vizro().build(dashboard).run()
