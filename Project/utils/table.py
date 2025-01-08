@@ -1,12 +1,10 @@
-from include import env_add
-from sqlalchemy import text
-from sqlalchemy import create_engine
+from utils.supabase import select
 from statsmodels.stats.proportion import proportions_chisquare
 import pandas as pd
-import os
 import vizro.models as vm
+from vizro.tables import dash_ag_grid
 
-sql = """
+SQL = """
 SELECT
     platform,
 	query,
@@ -19,40 +17,26 @@ GROUP BY
 	platform,
 	query
 """
-
-engine = create_engine(os.environ.get("supabase"), client_encoding='utf8', )
-
-
-def select(sql):
-    sql = text(sql)
-    return pd.read_sql(sql, engine)
-
-
-df = select(sql)
-min_query_cnt = 50
-df = df.query("query_count_total >= @min_query_cnt")
-df_pivoted = df.pivot(index='query', columns=["platform"], values=["cnt", "platform_total"], ).reset_index()
-df_pivoted.columns = ["_".join(a).rstrip('_') for a in df_pivoted.columns.to_flat_index()]
-df_pivoted.fillna(
-    value={'cnt_touch': 0, 'cnt_desktop': 0, 'platform_total_desktop': df_pivoted['platform_total_desktop'].max(),
-           'platform_total_touch': df_pivoted['platform_total_touch'].max()}, inplace=True)
-
-df = df_pivoted.reset_index()
-def proportions_chi2(df: pd.DataFrame):
+def proportions_chi2(df: pd.DataFrame):п
     _, pval, _ = proportions_chisquare(
         count=[df['cnt_desktop'], df['cnt_touch']],
         nobs=[df['platform_total_desktop'], df['platform_total_touch']])
-
     return pval
 
+def get_table_data(sql, min_cnt):
+    min_query_cnt = min_cnt
+    df = select(sql).query("query_count_total >= @min_query_cnt")
+    df_pivoted = df.pivot(index='query', columns=["platform"], values=["cnt", "platform_total"], ).reset_index()
+    df_pivoted.columns = ["_".join(a).rstrip('_') for a in df_pivoted.columns.to_flat_index()]
+    df_pivoted.fillna(
+    value={'cnt_touch': 0, 'cnt_desktop': 0, 'platform_total_desktop': df_pivoted['platform_total_desktop'].max(),
+           'platform_total_touch': df_pivoted['platform_total_touch'].max()}, inplace=True)
 
-df_pivoted["pval"] = df_pivoted.apply(lambda x: proportions_chi2(x), axis=1)
-df_pivoted['pct_desktop'] = df_pivoted['cnt_desktop'] / df_pivoted['platform_total_desktop']
-df_pivoted['pct_touch'] = df_pivoted['cnt_touch'] / df_pivoted['platform_total_touch']
-
-from vizro.tables import dash_ag_grid
-
-
+    #df_pivoted.reset_index(inplace=True)
+    df_pivoted["pval"] = df_pivoted.apply(lambda x: proportions_chi2(x), axis=1)
+    df_pivoted['pct_desktop'] = df_pivoted['cnt_desktop'] / df_pivoted['platform_total_desktop']
+    df_pivoted['pct_touch'] = df_pivoted['cnt_touch'] / df_pivoted['platform_total_touch']
+    return df_pivoted
 
 cellStyle = {
     "styleConditions": [
@@ -64,7 +48,7 @@ cellStyle = {
 }
 
 columnDefs = [
-    {"field": "query"},
+    {"field": "query", "filter": True},
     {"field": "cnt_touch", "valueFormatter": {"function": "d3.format(',.0f')(params.value)"}},
     {"field": "pct_touch", "valueFormatter": {"function": "d3.format(',.3%')(params.value)"}},
     {"field": "cnt_desktop", "valueFormatter": {"function": "d3.format(',.0f')(params.value)"}},
@@ -74,9 +58,9 @@ columnDefs = [
 
 table_pval = vm.AgGrid(
     figure=dash_ag_grid(
-    data_frame=df_pivoted,
+    data_frame=get_table_data(sql=SQL, min_cnt=100),
     columnDefs=columnDefs,
-    defaultColDef={"resizable": False, "filter": False, "editable": False},
+    defaultColDef={"resizable": False, "filter": True, "editable": False},
                     dashGridOptions={"pagination": True, "paginationPageSize": 20},
     ),
     title="Queries counts and statistical significance of the difference between platforms"

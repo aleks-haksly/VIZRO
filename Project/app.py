@@ -1,166 +1,27 @@
 from vizro import Vizro
 import pandas as pd
 import vizro.models as vm
-from vizro.managers import data_manager
-from utils.supabase import select
-from vizro.figures import kpi_card_reference, kpi_card
+#from vizro.managers import data_manager
+#from utils.supabase import select
+#from vizro.figures import kpi_card_reference, kpi_card
 from vizro.models.types import capture
 import plotly.graph_objects as go
 import vizro.plotly.express as px
 from plotly.subplots import make_subplots
-from utils.helpers import get_pie_data, make_forecast, get_kpi_data, get_heatmap_data
+#from utils.helpers import get_pie_data, make_forecast, get_kpi_data, get_heatmap_data
 from plotly.express import density_heatmap
 from utils.table import table_pval
+#from utils.data_loader import data_manager, agg_data
+from utils.helpers import outliers_line_plot, components_plot, heatmap_plot, fig_kpi_date, fig_kpi_touch, fig_kpi_desk, fig_graph_pie
 
-# Data Retrieval
-agg_data = select("SELECT * FROM vizro.yandex_data_agg")
-
-# Forecast Data Management
-data_manager['forecast_touch'] = make_forecast(agg_data, freq='h', platform='touch')
-data_manager['forecast_desktop'] = make_forecast(agg_data, freq='h', platform='desktop')
-data_manager['heatmap_data'] = get_heatmap_data(agg_data)
-
-
-# Plot functions
-
-@capture("graph")
-def outliers_line_plot(data_frame: pd.DataFrame, **kwargs) -> go.Figure:
-    """Create line plot to visualize outliers."""
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=data_frame['ds'], y=data_frame['y'], name="Actual", mode='markers',
-        customdata=data_frame['ds'].dt.day_name(),
-        hovertemplate="<b>Date:</b> %{x}<br><b>Actual:</b> %{y}<br><b>DOW:</b> %{customdata}<extra></extra>",
-    ))
-    fig.add_trace(go.Scatter(
-        x=data_frame['ds'], y=data_frame['yhat'], name="Prediction", mode='lines',
-        customdata=data_frame['ds'].dt.day_name(),
-        hovertemplate="<b>Date:</b> %{x}<br><b>Prediction:</b> %{y:.0f}<br><b>DOW:</b> %{customdata}<extra></extra>",
-    ))
-    fig.add_trace(go.Scatter(
-        x=data_frame['ds'], y=data_frame['yhat_lower'], fill='tonexty', mode='none', name="95% CI Lower",
-        customdata=data_frame['ds'].dt.day_name(),
-        hovertemplate="<b>Date:</b> %{x}<br><b>95% CI Lower:</b> %{y:.0f}<br><b>DOW:</b> %{customdata}<extra></extra>",
-    ))
-    fig.add_trace(go.Scatter(
-        x=data_frame['ds'], y=data_frame['yhat_upper'], fill='tonexty', mode='none', name="95% CI Upper",
-        customdata=data_frame['ds'].dt.day_name(),
-        hovertemplate="<b>Date:</b> %{x}<br><b>95% CI Upper:</b> %{y:.0f}<br><b>DOW:</b> %{customdata}<extra></extra>",
-    ))
-    fig.add_trace(go.Scatter(x=data_frame['ds'], y=data_frame['trend'], name="Trend"))
-    fig.update_layout(
-        yaxis=dict(title="Number of Queries"),
-        title="Outliers Outside the 95% Confidence Interval"
-    )
-    return fig
-
-@capture("graph")
-def components_plot(data_frame: pd.DataFrame, **kwargs) -> go.Figure:
-    """Create subplots for trend and seasonality components."""
-    fig = make_subplots(
-        rows=3, cols=1,
-        subplot_titles=["Trend", "Weekly Seasonality", "Daily Seasonality"]
-    )
-    fig.add_trace(go.Scatter(
-        x=data_frame['ds'], y=data_frame['trend'], mode='lines', name='Trend',
-        hovertemplate="<b>Date:</b> %{x}<br><b>Trend:</b> %{y:.0f}<extra></extra>",
-    ), row=1, col=1)
-    fig.add_trace(go.Scatter(
-        x=data_frame['ds'][-168:], y=data_frame['weekly'][-168:], mode='lines', name='Weekly Trend',
-        customdata=data_frame['ds'].dt.day_name(),
-        hovertemplate="<b>Date:</b> %{x}<br><b>Weekly Trend:</b> %{y:.0f}<br><b>DOW:</b> %{customdata}<extra></extra>",
-    ), row=2, col=1)
-    fig.add_trace(go.Scatter(
-        x=data_frame['ds'][-24:], y=data_frame['daily'][-24:], mode='lines', name='Daily Trend',
-        hovertemplate="<b>Time:</b> %{x}<br><b>Daily Trend:</b> %{y:.0f}<extra></extra>",
-    ), row=3, col=1)
-    fig.update_layout(title="Model Components", showlegend=False)
-    return fig
-
-@capture("graph")
-def heatmap_plot(data_frame: pd.DataFrame, z, **kwargs) -> go.Figure:
-    df = data_frame[data_frame.date > data_frame.date.max() - pd.Timedelta(7, 'days')]
-    if z == 'count':
-        fig = density_heatmap(df, x="date", y="hour", z=z, histfunc="sum",
-                    text_auto=True, nbinsy=24, nbinsx=7, facet_col="platform",
-                              color_continuous_scale=px.colors.sequential.Purples,
-                              **kwargs
-                              #hover_data ={'dow': True}
-                              )
-
-
-    else:
-        fig = density_heatmap(df, x="date", y="hour", z=z, histfunc="sum",
-                              text_auto=True, nbinsy=24, nbinsx=7, facet_col="platform",
-                              color_continuous_scale=px.colors.diverging.BrBG, color_continuous_midpoint=0,
-                              **kwargs
-                              )
-
-    for data in fig.data:
-        if z == 'wow_diff_%':
-            data.hovertemplate = '<b>Date: </b>%{x}<br><b>Hour: </b>%{y}<br><b>Queries count: </b>%{z:.2f}%<extra></extra>'
-            data.texttemplate = '%{z:.2f}%'
-            fig.update_coloraxes(colorbar_ticksuffix= '%')
-        else:
-            data.hovertemplate = '<b>Date: </b>%{x}<br><b>Hour: </b>%{y}<br><b>Queries count: </b>%{z}<extra></extra>'
-    fig.update_coloraxes(colorbar_title_text='')
-    return fig
-
-# KPI Container
+# Overview page
+## Components
 kpi_container = vm.Container(
     id="kpi_container",
     title="",
-    components=[
-        vm.Figure(
-            id="kpi-date",
-            figure=kpi_card(
-                agg_data,
-                value_column='ds',
-                value_format='{value}',
-                agg_func='max',
-                title='Date',
-                icon="calendar_month"
-            ),
-        ),
-        vm.Figure(
-            id="kpi-touch",
-            figure=kpi_card_reference(
-                get_kpi_data(agg_data, "touch"),
-                value_column="actual",
-                reference_column="previous",
-                agg_func=lambda x: x.iloc[-1],
-                title="Touch Queries",
-                value_format="{value:,.0f}",
-                reference_format="{delta_relative:+.1%} vs. previous ({reference:,.0f})",
-                icon=["Smartphone"],
-            ),
-        ),
-        vm.Figure(
-            id="kpi-desk",
-            figure=kpi_card_reference(
-                get_kpi_data(agg_data, "desktop"),
-                value_column="actual",
-                reference_column="previous",
-                agg_func=lambda x: x.iloc[-1],
-                title="Desktop Queries",
-                value_format="{value:,.0f}",
-                reference_format="{delta_relative:+.1%} vs. previous ({reference:,.0f})",
-                icon=["computer"],
-            ),
-        ),
-        vm.Graph(
-            figure=px.pie(
-                data_frame=get_pie_data(agg_data),
-                values="count",
-                names="platform",
-                title="Queries Ratio Over Selected Date Range"
-            ),
-        ),
-    ],
+    components=[fig_kpi_date, fig_kpi_touch, fig_kpi_desk, fig_graph_pie],
     layout=vm.Layout(grid=[[0, 1, 2, 3]])
 )
-
-
 
 # Line Charts Tabbed Component
 line_charts_tabbed = vm.Tabs(
@@ -184,7 +45,7 @@ line_charts_tabbed = vm.Tabs(
     ]
 )
 
-# Pages
+## Page Overview layout
 page_overview = vm.Page(
     title="Overview Dashboard",
     layout=vm.Layout(grid=[[0], [1], [1], [1]]),
@@ -212,9 +73,8 @@ page_overview = vm.Page(
     ]
 )
 
-# Overview Page
-
-# Heatmaps
+# Page Queries counts detailed
+## Components
 heatmap_tabbed = vm.Tabs(
     tabs=[vm.Container(
             title="Weekly queries count",
@@ -238,7 +98,7 @@ heatmap_tabbed = vm.Tabs(
             figure=heatmap_plot('heatmap_data', z="wow_diff_%", title = 'WoW queries count difference %')
             )])
         ])
-
+## Queries counts detailed layout
 page_queries_detailed = vm.Page(
     title="Queries counts detailed",
     layout=vm.Layout(grid=[[0],]),
@@ -256,6 +116,7 @@ page_queries_detailed = vm.Page(
     ]
 )
 # Detailed queries text page
+## Components
 
 
 page_queries_text_detailed = vm.Page(
