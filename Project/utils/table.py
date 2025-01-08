@@ -17,7 +17,7 @@ GROUP BY
 	platform,
 	query
 """
-def proportions_chi2(df: pd.DataFrame):п
+def proportions_chi2(df: pd.DataFrame):
     _, pval, _ = proportions_chisquare(
         count=[df['cnt_desktop'], df['cnt_touch']],
         nobs=[df['platform_total_desktop'], df['platform_total_touch']])
@@ -48,7 +48,7 @@ cellStyle = {
 }
 
 columnDefs = [
-    {"field": "query", "filter": True},
+    {"field": "query"},
     {"field": "cnt_touch", "valueFormatter": {"function": "d3.format(',.0f')(params.value)"}},
     {"field": "pct_touch", "valueFormatter": {"function": "d3.format(',.3%')(params.value)"}},
     {"field": "cnt_desktop", "valueFormatter": {"function": "d3.format(',.0f')(params.value)"}},
