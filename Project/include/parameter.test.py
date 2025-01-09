@@ -6,7 +6,7 @@ import vizro.models as vm
 from vizro.managers import data_manager
 
 def load_iris_data(number_of_points=10):
-    iris = pd.read_csv("iris.csv")
+    iris = pd.read_csv("../iris.csv")
     return iris.sample(number_of_points)
 
 data_manager["iris"] = load_iris_data

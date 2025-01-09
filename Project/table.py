@@ -13,6 +13,7 @@ SELECT
 	sum(count(query)) over(PARTITION BY query) AS query_count_total
 FROM
 	vizro.yandex_data yd
+	WHERE 
 GROUP BY
 	platform,
 	query

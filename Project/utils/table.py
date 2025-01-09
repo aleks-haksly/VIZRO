@@ -3,21 +3,9 @@ from statsmodels.stats.proportion import proportions_chisquare
 import pandas as pd
 import vizro.models as vm
 from vizro.tables import dash_ag_grid
-
+from utils.data_loader import data_manager
 # SQL-запрос
-SQL = """
-SELECT
-    platform,
-    query,
-    count(*) AS cnt,
-    sum(count(query)) OVER (PARTITION BY platform) AS platform_total, 
-    sum(count(query)) OVER (PARTITION BY query) AS query_count_total
-FROM
-    vizro.yandex_data yd
-GROUP BY
-    platform,
-    query
-"""
+
 
 SQL_TEMPLATE = """
 SELECT
@@ -64,10 +52,12 @@ def proportions_chi2(row: pd.Series) -> float:
     )
     return pval
 
-def get_table_data(sql: str, min_cnt: int) -> pd.DataFrame:
+def get_table_data(sql=SQL_TEMPLATE, min_cnt=50, range=['2021-09-01', '2021-09-21']) -> pd.DataFrame:
     """
     Получает данные из базы, фильтрует по минимальному количеству запросов и вычисляет статистические показатели.
     """
+    start_date, end_date = range
+    sql = SQL_TEMPLATE.format(start_date=start_date, end_date=end_date)
     df = select(sql).query("query_count_total >= @min_cnt")
 
     # Пивотирование данных
@@ -76,7 +66,6 @@ def get_table_data(sql: str, min_cnt: int) -> pd.DataFrame:
         .reset_index()
     )
     df_pivoted.columns = ["_".join(col).rstrip('_') for col in df_pivoted.columns.to_flat_index()]
-
     # Заполнение пропущенных значений
     max_totals = {
         'platform_total_desktop': df_pivoted['platform_total_desktop'].max(),
@@ -91,35 +80,19 @@ def get_table_data(sql: str, min_cnt: int) -> pd.DataFrame:
     df_pivoted["pval"] = df_pivoted.apply(proportions_chi2, axis=1)
     df_pivoted['pct_desktop'] = df_pivoted['cnt_desktop'] / df_pivoted['platform_total_desktop']
     df_pivoted['pct_touch'] = df_pivoted['cnt_touch'] / df_pivoted['platform_total_touch']
-
+    print(df_pivoted)
     return df_pivoted
 
 
-def create_table_with_filter(start_date, end_date):
-    sql = SQL_TEMPLATE.format(start_date=start_date, end_date=end_date)
-    data_frame = get_table_data(sql=sql, min_cnt=100)
-    return vm.AgGrid(
-        figure=dash_ag_grid(
-            data_frame=data_frame,
-            columnDefs=COLUMN_DEFS,
-            defaultColDef={"resizable": False, "filter": True, "editable": False},
-            dashGridOptions={"pagination": True, "paginationPageSize": 20},
-        ),
-        title="Queries counts and statistical significance of the difference between platforms"
-    )
 
 
-
-
-
+data_manager['df_pivoted'] = get_table_data
+"""
 # Создание таблицы
-table_pval = vm.AgGrid(
-    id='tb1',
-    figure=dash_ag_grid(
-        data_frame=get_table_data(sql=SQL, min_cnt=100),
-        columnDefs=COLUMN_DEFS,
+table_pval = vm.AgGrid(id='ag', figure=dash_ag_grid(id='dag', data_frame='data_table', columnDefs=COLUMN_DEFS,
         defaultColDef={"resizable": False, "filter": True, "editable": False},
         dashGridOptions={"pagination": True, "paginationPageSize": 20},
-    ),
-    title="Queries counts and statistical significance of the difference between platforms"
-)
+                                                    title="Queries counts and statistical significance of the difference between platforms"),
+
+),
+"""
