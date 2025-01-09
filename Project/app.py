@@ -135,11 +135,11 @@ CELL_STYLE = {
 
 COLUMN_DEFS = [
     {"field": "query"},
-    {"field": "cnt_touch", "valueFormatter": {"function": "d3.format(',.0f')(params.value)"}},
-    {"field": "pct_touch", "valueFormatter": {"function": "d3.format(',.3%')(params.value)"}},
-    {"field": "cnt_desktop", "valueFormatter": {"function": "d3.format(',.0f')(params.value)"}},
-    {"field": "pct_desktop", "valueFormatter": {"function": "d3.format(',.3%')(params.value)"}},
-    {"field": "pval", "valueFormatter": {"function": "d3.format(',.3f')(params.value)"}, "cellStyle": CELL_STYLE},
+    {"field": "Count touch", "valueFormatter": {"function": "d3.format(',.0f')(params.value)"}},
+    {"field": "Count touch %", "valueFormatter": {"function": "d3.format(',.3%')(params.value)"}},
+    {"field": "Count desktop", "valueFormatter": {"function": "d3.format(',.0f')(params.value)"}},
+    {"field": "Count desktop %", "valueFormatter": {"function": "d3.format(',.3%')(params.value)"}},
+    {"field": "P-value", "valueFormatter": {"function": "d3.format(',.3f')(params.value)"}, "cellStyle": CELL_STYLE},
 ]
 
 
@@ -157,10 +157,23 @@ page_queries_text_detailed = vm.Page(
             targets=["ag.data_frame.range"],
             selector=vm.DatePicker(
                 range=True,
-                title="Dates",
+                title="Filter date range",
                 id='date_filter',
                 min='2021-09-01',
-                max='2021-09-21',)),]
+                max='2021-09-21',
+                value=['2021-09-08', '2021-09-21'])),
+
+vm.Parameter(
+            targets=["ag.data_frame.min_cnt"],
+            selector=vm.Slider(
+                title="Filter min sum query counts",
+                id='min_query_count_filter',
+                min=20,
+                max=200,
+                step=20,
+                value=100
+            )),
+    ]
         )
 
 

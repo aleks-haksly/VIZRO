@@ -60,18 +60,29 @@ def get_heatmap_data(df):
 
 
 SQL_TEMPLATE = """
+WITH t as (
 SELECT
-    platform,
     query,
+    platform,
     count(*) AS cnt,
-    sum(count(query)) over(PARTITION BY platform) AS platform_total, 
-    sum(count(query)) over(PARTITION BY query) AS query_count_total
+    sum(count(*)::int) OVER (PARTITION BY query) as query_total,
+    sum(count(*)::int) OVER (PARTITION BY platform) as platform_total
 FROM
     vizro.yandex_data yd
 WHERE
     ts BETWEEN '{start_date}' AND '{end_date}'
 GROUP BY
-    platform, query
+    query, platform)
+
+SELECT 
+    query,
+    sum(case when platform = 'desktop' then cnt else 0 end)::int as count_desktop,
+    sum(case when platform = 'touch' then cnt else 0 end)::int as count_touch,
+    max(case when platform = 'desktop' then platform_total else 0 end) as desktop_total,
+    max(case when platform = 'touch' then platform_total else 0 end) as touch_total
+FROM t
+    WHERE t.query_total >= {min_cnt}
+GROUP BY query
 """
 
 
@@ -80,40 +91,21 @@ def proportions_chi2(row: pd.Series) -> float:
     Вычисляет p-value для статистики хи-квадрат.
     """
     _, pval, _ = proportions_chisquare(
-        count=[row['cnt_desktop'], row['cnt_touch']],
-        nobs=[row['platform_total_desktop'], row['platform_total_touch']]
+        count=[row['count_desktop'], row['count_touch']],
+        nobs=[row['desktop_total'], row['touch_total']]
     )
     return pval
 
-def get_table_data(sql=SQL_TEMPLATE, min_cnt=50, range=['2021-09-01', '2021-09-21']) -> pd.DataFrame:
-    """
-    Получает данные из базы, фильтрует по минимальному количеству запросов и вычисляет статистические показатели.
-    """
-    start_date, end_date = range
-    sql = SQL_TEMPLATE.format(start_date=start_date, end_date=end_date)
-    df = select(sql).query("query_count_total >= @min_cnt")
-
-    # Пивотирование данных
-    df_pivoted = (
-        df.pivot(index='query', columns="platform", values=["cnt", "platform_total"])
-        .reset_index()
-    )
-    df_pivoted.columns = ["_".join(col).rstrip('_') for col in df_pivoted.columns.to_flat_index()]
-    # Заполнение пропущенных значений
-    max_totals = {
-        'platform_total_desktop': df_pivoted['platform_total_desktop'].max(),
-        'platform_total_touch': df_pivoted['platform_total_touch'].max()
-    }
-    df_pivoted.fillna(
-        value={'cnt_touch': 0, 'cnt_desktop': 0, **max_totals},
-        inplace=True
-    )
-
-    # Добавление вычисляемых колонок
-    df_pivoted["pval"] = df_pivoted.apply(proportions_chi2, axis=1)
-    df_pivoted['pct_desktop'] = df_pivoted['cnt_desktop'] / df_pivoted['platform_total_desktop']
-    df_pivoted['pct_touch'] = df_pivoted['cnt_touch'] / df_pivoted['platform_total_touch']
-    return df_pivoted
+def get_table_data(sql=SQL_TEMPLATE, min_cnt=50, range=['2021-09-08', '2021-09-21']) -> pd.DataFrame:
+  start_date, end_date = range
+  sql = SQL_TEMPLATE.format(start_date=start_date, end_date=end_date, min_cnt=min_cnt)
+  query_df = select(sql)
+  query_df['pct_desktop'] = query_df['count_desktop'] / query_df['desktop_total']
+  query_df['pct_touch'] = query_df['count_touch'] / query_df['touch_total']
+  query_df["pval"] = query_df.apply(proportions_chi2, axis=1)
+  return query_df.rename(columns={"count_desktop":"Count desktop", "count_touch":"Count touch",
+                                  "pct_desktop":"Count desktop %", "pct_touch":"Count touch %",
+                                  "pval": "P-value"})
 
 
 
