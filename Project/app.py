@@ -14,7 +14,7 @@ from plotly.subplots import make_subplots
 from plotly.express import density_heatmap
 from vizro.tables import dash_ag_grid
 #from utils.data_loader import data_manager, agg_data
-from utils.helpers import outliers_line_plot, components_plot, heatmap_plot, fig_kpi_date, fig_kpi_touch, fig_kpi_desk, fig_graph_pie
+from utils.helpers import outliers_line_plot, components_plot, heatmap_plot, fig_kpi_date, fig_kpi_touch, fig_kpi_desk, fig_graph_pie, butterfly
 from utils.supabase import select
 from utils.data_loader import data_manager
 from utils.table import  get_table_data
@@ -142,19 +142,31 @@ COLUMN_DEFS = [
     {"field": "P-value", "valueFormatter": {"function": "d3.format(',.3f')(params.value)"}, "cellStyle": CELL_STYLE},
 ]
 
+table_grid = vm.AgGrid(id='ag', figure=dash_ag_grid(id='dag', data_frame='data_table', columnDefs=COLUMN_DEFS,
+                                               defaultColDef={"resizable": False, "filter": True, "editable": False},
+                                               dashGridOptions={"pagination": True, "paginationPageSize": 10},
+                                               columnSize="responsiveSizeToFit"),title="Queries counts and statistical significance of the difference between platforms",
+                       )
+
+
+butterfly_chart = vm.Graph(id='btfly',figure=butterfly(
+    'butterfly_data',
+    x=["pct_desktop", "pct_touch"],
+    y="query",
+    labels={"value": "% of all", "variable": "platform:"},
+    hover_name="query", hover_data={'query': False, 'count_desktop': True, 'count_touch': True },
+))
+
+
+
 
 page_queries_text_detailed = vm.Page(
     title="Queries text detailed",
-    layout=vm.Layout(grid=[[0],]),
-    components=[
-        vm.AgGrid(id='ag', figure=dash_ag_grid(id='dag', data_frame='data_table', columnDefs=COLUMN_DEFS,
-                                               defaultColDef={"resizable": False, "filter": True, "editable": False},
-                                               dashGridOptions={"pagination": True, "paginationPageSize": 20},
-                                               ),title="Queries counts and statistical significance of the difference between platforms")
-    ],
+    layout=vm.Layout(grid=[[1], [0], [0],]),
+    components=[table_grid, butterfly_chart ],
     controls=[
         vm.Parameter(
-            targets=["ag.data_frame.range"],
+            targets=["ag.data_frame.range", 'btfly.data_frame.range'],
             selector=vm.DatePicker(
                 range=True,
                 title="Filter date range",
@@ -164,7 +176,7 @@ page_queries_text_detailed = vm.Page(
                 value=['2021-09-08', '2021-09-21'])),
 
 vm.Parameter(
-            targets=["ag.data_frame.min_cnt"],
+            targets=["ag.data_frame.min_cnt", 'btfly.data_frame.min_cnt'],
             selector=vm.Slider(
                 title="Filter min sum query counts",
                 id='min_query_count_filter',

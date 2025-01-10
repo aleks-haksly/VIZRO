@@ -108,9 +108,17 @@ def get_table_data(sql=SQL_TEMPLATE, min_cnt=50, range=['2021-09-08', '2021-09-2
                                   "pval": "P-value"})
 
 
+def get_butterfly_data(sql=SQL_TEMPLATE, min_cnt=50, range=['2021-09-08', '2021-09-21']) -> pd.DataFrame:
+  start_date, end_date = range
+  sql = SQL_TEMPLATE.format(start_date=start_date, end_date=end_date, min_cnt=min_cnt)
+  query_df = select(sql)
+  query_df = pd.concat([query_df.sort_values(by="count_desktop", ascending=False).head(10),  query_df.sort_values(by="count_touch", ascending=False).head(10)], axis=0).drop_duplicates(subset=['query'])
+  query_df['pct_desktop'] = query_df['count_desktop'] / query_df['desktop_total']
+  query_df['pct_touch'] = query_df['count_touch'] / query_df['touch_total']
+
+  return query_df
 
 
-data_manager['df_pivoted'] = get_table_data
 
 
 
@@ -123,3 +131,4 @@ data_manager['forecast_touch'] = make_forecast(agg_data, freq='h', platform='tou
 data_manager['forecast_desktop'] = make_forecast(agg_data, freq='h', platform='desktop')
 data_manager['heatmap_data'] = get_heatmap_data(agg_data)
 data_manager["data_table"] = get_table_data
+data_manager['butterfly_data'] = get_butterfly_data
